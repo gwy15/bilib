@@ -162,6 +162,21 @@ class User:
         'return None'
         url = 'http://account.bilibili.com/home/userInfo'
         data = self.get(url, headers={'Host': 'account.bilibili.com'})
-        self.level = data['level_info']['current_level']
-        self.coins = data['coins']
-        self.name = data['uname']
+        self._level = data['level_info']['current_level']
+        self._coins = data['coins']
+        self._name = data['uname']
+
+    @property
+    @requireLogined
+    def level(self):
+        return self._level
+
+    @property
+    @requireLogined
+    def coins(self):
+        return self._coins
+    
+    @property
+    @requireLogined
+    def name(self):
+        return self._name
