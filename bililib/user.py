@@ -3,6 +3,7 @@ import hashlib
 import base64
 import time
 from urllib import parse
+import json
 import functools
 import unittest
 
@@ -76,11 +77,9 @@ class User:
             'appkey': self.APPKEY,
             'sign': self.sign(f'appkey={self.APPKEY}')
         }
-        js = requests.post(url, data=params).json()
 
-        if js['code'] != 0:
-            raise RuntimeError('getKey: %s' % js['message'])
-        data = js['data']
+        data = self.do(requests.post, url, params)
+
         salt, pubKey = data['hash'], data['key']
         key = rsa.PublicKey.load_pkcs1_openssl_pem(pubKey.encode('utf8'))
         password = base64.b64encode(
@@ -100,12 +99,10 @@ class User:
         sign = self.sign(params)
         params += '&sign=' + sign
 
-        js = requests.post(url, data=params,
-                           headers={"Content-type": "application/x-www-form-urlencoded"}).json()
-        if js['code'] != 0:
-            raise RuntimeError('login: %s' % js['message'])
+        data = self.do(requests.post, url, data=params,
+                       headers={"Content-type": "application/x-www-form-urlencoded"})
 
-        for cookie in js['data']['cookie_info']['cookies']:
+        for cookie in data['cookie_info']['cookies']:
             self.session.cookies[cookie['name']] = cookie['value']
         self.csrf = self.session.cookies['bili_jct']
         logging.info(f'用户 {self.phone} 登陆成功')
@@ -115,7 +112,13 @@ class User:
 
     @staticmethod
     def do(method, url, *args, **kws):
-        jsData = method(url, *args, **kws).json()
+        response = method(url, *args, **kws)
+        try:
+            jsData = response.json()
+        except json.JSONDecodeError:
+            # TODO
+            raise
+
         if jsData['code']:
             raise BiliError(jsData.get('message', ''))
 
