@@ -90,7 +90,7 @@ class User:
 
     def login(self):
         '登陆'
-        logging.info(f'用户 {self.phone} 登陆中...')
+        logger.info(f'用户 {self.phone} 登陆中...')
 
         url = "https://passport.bilibili.com/api/v2/oauth2/login"
 
@@ -105,7 +105,7 @@ class User:
         for cookie in data['cookie_info']['cookies']:
             self.session.cookies[cookie['name']] = cookie['value']
         self.csrf = self.session.cookies['bili_jct']
-        logging.info(f'用户 {self.phone} 登陆成功')
+        logger.info(f'用户 {self.phone} 登陆成功')
         self.logined = True
 
         self.getUserInfo()
@@ -154,7 +154,7 @@ class User:
         assert self.csrf != ''
         self.post(url, param)
 
-        logging.info(f'弹幕 {danmu} 发送成功')
+        logger.info(f'弹幕 {danmu} 发送成功')
         return
 
     @requireLogined

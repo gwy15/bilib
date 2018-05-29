@@ -104,4 +104,4 @@ venv.bak/
 .mypy_cache/
 
 # test config
-test_config.json
+tests/user_account.json

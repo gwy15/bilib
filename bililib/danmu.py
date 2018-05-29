@@ -5,7 +5,7 @@ import unittest
 
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 class DanmuMode(Enum):
     '弹幕的类型，FLY 平飞, DOWN 底部弹幕，TOP 顶部弹幕'
@@ -29,13 +29,13 @@ class Danmu:
 
     @staticmethod
     def getCid(aid):
-        logging.debug('获取 cid 中')
+        logger.debug('获取 cid 中')
         url = f'https://www.bilibili.com/widget/getPageList?aid={aid}'
         data = requests.get(url).json()
         if len(data) != 1:
-            logging.warning(f'当前 aid {aid} 有多 P，建议手动指定 aid')
+            logger.warning(f'当前 aid {aid} 有多 P，建议手动指定 aid')
         cid = data[0]['cid']
-        logging.debug(f'cid 获取: {cid}')
+        logger.debug(f'cid 获取: {cid}')
         return cid
 
     def getTimeStr(self):
