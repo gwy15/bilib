@@ -111,8 +111,22 @@ class User:
         self.getUserInfo()
 
     @staticmethod
-    def do(method, url, *args, **kws):
-        response = method(url, *args, **kws)
+    def do(method, url, *args, times=1, **kws):
+        # robust
+        if times >= 5:
+            raise BiliError('Max retry times reached.')
+
+        try:
+            response = method(url, *args, **kws)
+        except requests.ConnectTimeout:
+            logger.warning('%s.do: ConnectTimeout. Retrying...' %
+                           type(self).__name__)
+            return self.do(method, *args, times=times+1, **kws)
+        except requests.ConnectionError:
+            logger.warning('%s.do: ConnectionError. Retrying...' %
+                           type(self).__name__)
+            return self.do(method, *args, times=times+1, **kws)
+
         try:
             jsData = response.json()
         except json.JSONDecodeError:
@@ -175,7 +189,7 @@ class User:
     @requireLogined
     def coins(self):
         return self._coins
-    
+
     @property
     @requireLogined
     def name(self):
