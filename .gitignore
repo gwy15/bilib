@@ -1,2 +1,8 @@
 .vscode
+
 tests/test_config.json
+
+__pycache__
+*.egg-info
+dist
+build

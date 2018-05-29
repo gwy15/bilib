@@ -43,9 +43,9 @@ class User:
     APPKEY = '1d8b6e7d45233436'
     SECRET_KEY = "560c52ccd288fed045859ed18bffd973"
 
-    def __init__(self, username, password):
+    def __init__(self, phone, password):
         self.session = requests.session()
-        self.username = username
+        self.phone = phone
         self.password = password
         self.csrf = ''
 
@@ -57,6 +57,12 @@ class User:
 
     def __del__(self):
         self.session.close()
+
+    def __repr__(self):
+        if not self.logined:
+            return '<bililib.User %s [not logged in]' % self.phone
+        else:
+            return '<bililib.User %s lv.%d>' % (self.phone, self.level)
 
     @staticmethod
     def sign(s):
@@ -85,11 +91,11 @@ class User:
 
     def login(self):
         '登陆'
-        logging.info(f'用户 {self.username} 登陆中...')
+        logging.info(f'用户 {self.phone} 登陆中...')
 
         url = "https://passport.bilibili.com/api/v2/oauth2/login"
 
-        user, pwd = self.getPwd(self.username, self.password)
+        user, pwd = self.getPwd(self.phone, self.password)
         params = f'appkey={self.APPKEY}&password={pwd}&username={user}'
         sign = self.sign(params)
         params += '&sign=' + sign
@@ -102,7 +108,7 @@ class User:
         for cookie in js['data']['cookie_info']['cookies']:
             self.session.cookies[cookie['name']] = cookie['value']
         self.csrf = self.session.cookies['bili_jct']
-        logging.info(f'用户 {self.username} 登陆成功')
+        logging.info(f'用户 {self.phone} 登陆成功')
         self.logined = True
 
         self.getUserInfo()
