@@ -44,7 +44,7 @@ class User:
     APPKEY = '1d8b6e7d45233436'
     SECRET_KEY = "560c52ccd288fed045859ed18bffd973"
 
-    def __init__(self, phone, password):
+    def __init__(self, phone, password, username=None, level=0, coins=0):
         self.session = requests.session()
         self.phone = phone
         self.password = password
@@ -56,12 +56,16 @@ class User:
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
         self.logined = False
 
+        self.level = level
+        self.coins = coins
+        self.name = username if username else 'unlogined user'
+
     def __del__(self):
         self.session.close()
 
     def __repr__(self):
         if not self.logined:
-            return '<bililib.User %s [not logged in]' % self.phone
+            return '<bililib.User %s [not logged in]>' % self.phone
         else:
             return '<bililib.User %s lv.%d>' % (self.phone, self.level)
 
@@ -130,8 +134,8 @@ class User:
         try:
             jsData = response.json()
         except json.JSONDecodeError:
-            # TODO
-            raise
+            raise RuntimeError(
+                'response is not a json string. %s' % response.text)
 
         if jsData['code']:
             raise BiliError(jsData.get('message', ''))
@@ -176,21 +180,36 @@ class User:
         'return None'
         url = 'http://account.bilibili.com/home/userInfo'
         data = self.get(url, headers={'Host': 'account.bilibili.com'})
-        self._level = data['level_info']['current_level']
-        self._coins = data['coins']
-        self._name = data['uname']
+        self.level = data['level_info']['current_level']
+        self.coins = data['coins']
+        self.name = data['uname']
 
     @property
-    @requireLogined
     def level(self):
         return self._level
 
+    @level.setter
+    def level(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._level = value
+
     @property
-    @requireLogined
     def coins(self):
         return self._coins
 
+    @coins.setter
+    def coins(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        self._coins = value
+
     @property
-    @requireLogined
     def name(self):
         return self._name
+
+    @name.setter
+    def name(self, value):
+        if not isinstance(value, str):
+            raise TypeError
+        self._name = value

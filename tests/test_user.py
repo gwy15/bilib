@@ -27,15 +27,6 @@ class UserTester(unittest.TestCase):
         with self.assertRaises(bililib.user.BiliRequireLogin):
             self.user.getUserInfo()
 
-        with self.assertRaises(bililib.user.BiliRequireLogin):
-            self.user.level
-
-        with self.assertRaises(bililib.user.BiliRequireLogin):
-            self.user.coins
-
-        with self.assertRaises(bililib.user.BiliRequireLogin):
-            self.user.name
-
         self.user.login()
         self.assertEqual(self.user.name, self.config['username'])
 
