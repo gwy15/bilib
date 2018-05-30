@@ -94,7 +94,7 @@ class User:
 
     def login(self):
         '登陆'
-        logger.info(f'用户 {self.phone} 登陆中...')
+        logger.debug(f'用户 {self.phone} 登陆中...')
 
         url = "https://passport.bilibili.com/api/v2/oauth2/login"
 
@@ -183,6 +183,13 @@ class User:
         self.level = data['level_info']['current_level']
         self.coins = data['coins']
         self.name = data['uname']
+
+    @requireLogined
+    def updateCoins(self):
+        url = 'https://account.bilibili.com/site/getCoin'
+        data = self.get(url, headers={'Host': 'account.bilibili.com',
+                                      'Referer': 'https://account.bilibili.com/account/coin'})
+        self.coins = data['money']
 
     @property
     def level(self):

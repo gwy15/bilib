@@ -33,3 +33,10 @@ class UserTester(unittest.TestCase):
         self.assertIsInstance(self.user.level, int)
         self.assertIsInstance(self.user.coins, int)
         self.assertIsInstance(self.user.name, str)
+    
+    def testUpdateCoin(self):
+        with self.assertRaises(bililib.user.BiliRequireLogin):
+            self.user.updateCoins()
+        
+        self.user.login()
+        self.user.updateCoins()
