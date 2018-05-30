@@ -10,9 +10,6 @@ import unittest
 import requests
 import rsa
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class BiliError(Exception):
     def __init__(self, msg):
@@ -46,7 +43,12 @@ class User:
 
     def __init__(self, phone, password, username=None, level=0, coins=0):
         self.session = requests.session()
+        if not isinstance(phone, str):
+            raise TypeError('phone must be str, not %s' % type(phone).__name__)
         self.phone = phone
+        if not isinstance(password, str):
+            raise TypeError('password must be str, not %s' %
+                            type(password).__name__)
         self.password = password
         self.csrf = ''
 
@@ -59,6 +61,8 @@ class User:
         self.level = level
         self.coins = coins
         self.name = username if username else 'unlogined user'
+
+        self.logger = logging.getLogger(self.phone)
 
     def __del__(self):
         self.session.close()
@@ -94,7 +98,7 @@ class User:
 
     def login(self):
         '登陆'
-        logger.debug(f'用户 {self.phone} 登陆中...')
+        self.logger.debug(f'用户 {self.phone} 登陆中...')
 
         url = "https://passport.bilibili.com/api/v2/oauth2/login"
 
@@ -109,13 +113,12 @@ class User:
         for cookie in data['cookie_info']['cookies']:
             self.session.cookies[cookie['name']] = cookie['value']
         self.csrf = self.session.cookies['bili_jct']
-        logger.info(f'用户 {self.phone} 登陆成功')
+        self.logger.info(f'用户 {self.phone} 登陆成功')
         self.logined = True
 
         self.getUserInfo()
 
-    @staticmethod
-    def do(method, url, *args, times=1, **kws):
+    def do(self, method, url, *args, times=1, **kws):
         # robust
         if times >= 5:
             raise BiliError('Max retry times reached.')
@@ -123,13 +126,13 @@ class User:
         try:
             response = method(url, *args, **kws)
         except requests.ConnectTimeout:
-            logger.warning('%s.do: ConnectTimeout. Retrying...' %
-                           type(self).__name__)
-            return self.do(method, *args, times=times+1, **kws)
+            self.logger.warning('%s.do: ConnectTimeout. Retrying...' %
+                                type(self).__name__)
+            return self.do(method, url, *args, times=times+1, **kws)
         except requests.ConnectionError:
-            logger.warning('%s.do: ConnectionError. Retrying...' %
-                           type(self).__name__)
-            return self.do(method, *args, times=times+1, **kws)
+            self.logger.warning('%s.do: ConnectionError. Retrying...' %
+                                type(self).__name__)
+            return self.do(method, url, *args, times=times+1, **kws)
 
         try:
             jsData = response.json()
@@ -172,7 +175,7 @@ class User:
         assert self.csrf != ''
         self.post(url, param)
 
-        logger.info(f'弹幕 {danmu} 发送成功')
+        self.logger.info(f'弹幕 {danmu} 发送成功')
         return
 
     @requireLogined

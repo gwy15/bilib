@@ -5,7 +5,6 @@ import unittest
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class DanmuMode(Enum):
     '弹幕的类型，FLY 平飞, DOWN 底部弹幕，TOP 顶部弹幕'
