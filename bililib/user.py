@@ -42,14 +42,18 @@ class User:
     SECRET_KEY = "560c52ccd288fed045859ed18bffd973"
 
     def __init__(self, phone, password, username=None, level=0, coins=0):
-        self.session = requests.session()
-        if not isinstance(phone, str):
-            raise TypeError('phone must be str, not %s' % type(phone).__name__)
+        self.session = None
+
+        self.assertType(phone, 'phone', str)
         self.phone = phone
-        if not isinstance(password, str):
-            raise TypeError('password must be str, not %s' %
-                            type(password).__name__)
+
+        self.assertType(password, 'password', str)
         self.password = password
+
+        self.assertType(level, 'level', int)
+        self.assertType(coins, 'coins', int)
+
+        self.session = requests.session()
         self.csrf = ''
 
         self.session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
@@ -65,7 +69,8 @@ class User:
         self.logger = logging.getLogger(self.phone)
 
     def __del__(self):
-        self.session.close()
+        if self.session:
+            self.session.close()
 
     def __repr__(self):
         if not self.logined:
@@ -73,17 +78,26 @@ class User:
         else:
             return '<bililib.User %s lv.%d>' % (self.phone, self.level)
 
+    # 基础函数
+
     @staticmethod
-    def sign(s):
+    def assertType(item, name, expectedType):
+        if not isinstance(item, expectedType):
+            raise TypeError('Param %s should be %s, instead of %s.' % (
+                name, expectedType.__name__, type(item).__name__
+            ))
+
+    @staticmethod
+    def _sign(s):
         return hashlib.md5(
             (s + User.SECRET_KEY).encode('utf8')).hexdigest()
 
-    def getPwd(self, username, password):
+    def _getPwd(self, username, password):
         '对密码进行 RSA 加密'
         url = 'https://passport.bilibili.com/api/oauth2/getKey'
         params = {
             'appkey': self.APPKEY,
-            'sign': self.sign(f'appkey={self.APPKEY}')
+            'sign': self._sign(f'appkey={self.APPKEY}')
         }
 
         data = self.do(requests.post, url, params)
@@ -102,9 +116,9 @@ class User:
 
         url = "https://passport.bilibili.com/api/v2/oauth2/login"
 
-        user, pwd = self.getPwd(self.phone, self.password)
+        user, pwd = self._getPwd(self.phone, self.password)
         params = f'appkey={self.APPKEY}&password={pwd}&username={user}'
-        sign = self.sign(params)
+        sign = self._sign(params)
         params += '&sign=' + sign
 
         data = self.do(requests.post, url, data=params,
@@ -152,33 +166,6 @@ class User:
         return self.do(self.session.post, url, *args, **kws)
 
     @requireLogined
-    def postDanmu(self, danmu):
-        '''
-        发送弹幕
-        danmu: danmu.Danmu
-        '''
-        url = 'https://api.bilibili.com/x/v2/dm/post'
-        param = {
-            'type': danmu.mode.value,           # 模式
-            'oid': danmu.cid,                   # cid, 可用 self.getCid 获得
-            'msg': danmu.msg,                   # 弹幕内容
-            'aid': danmu.aid,                   # aid
-            'progress': int(danmu.t),           # 时间，毫秒为单位
-            'color': int(danmu.color),          # 十六进制的 RGB
-            'fontsize': danmu.fontsize,         # 字体大小，两种规格，这个是默认的那个
-            'pool': 0,                          # 不知道，猜测是弹幕池，放 0
-            'mode': danmu.mode.value,           # mode 和 type 有啥区别？
-            'plat': 1,                          # 应该是平台
-            'rnd': int(1000000 * time.time()),  # 时间，单位 us
-            'csrf': self.csrf                   # csrf 参数
-        }
-        assert self.csrf != ''
-        self.post(url, param)
-
-        self.logger.info(f'弹幕 {danmu} 发送成功')
-        return
-
-    @requireLogined
     def getUserInfo(self):
         'return None'
         url = 'http://account.bilibili.com/home/userInfo'
@@ -200,8 +187,7 @@ class User:
 
     @level.setter
     def level(self, value):
-        if not isinstance(value, int):
-            raise TypeError
+        self.assertType(value, 'level', int)
         self._level = value
 
     @property
@@ -210,8 +196,7 @@ class User:
 
     @coins.setter
     def coins(self, value):
-        if not isinstance(value, int):
-            raise TypeError
+        self.assertType(value, 'coins', int)
         self._coins = value
 
     @property
@@ -220,6 +205,35 @@ class User:
 
     @name.setter
     def name(self, value):
-        if not isinstance(value, str):
-            raise TypeError
+        self.assertType(value, 'name', str)
         self._name = value
+
+    @requireLogined
+    def postDanmu(self, danmu):
+        '''
+        发送弹幕
+        danmu: danmu.Danmu
+        '''
+        import bililib
+        self.assertType(danmu, 'danmu', bililib.Danmu)
+
+        url = 'https://api.bilibili.com/x/v2/dm/post'
+        param = {
+            'type': danmu.mode.value,           # 模式
+            'oid': danmu.cid,                   # cid, 可用 self.getCid 获得
+            'msg': danmu.msg,                   # 弹幕内容
+            'aid': danmu.aid,                   # aid
+            'progress': int(danmu.t),           # 时间，毫秒为单位
+            'color': int(danmu.color),          # 十六进制的 RGB
+            'fontsize': danmu.fontsize,         # 字体大小，两种规格，这个是默认的那个
+            'pool': 0,                          # 不知道，猜测是弹幕池，放 0
+            'mode': danmu.mode.value,           # mode 和 type 有啥区别？
+            'plat': 1,                          # 应该是平台
+            'rnd': int(1000000 * time.time()),  # 时间，单位 us
+            'csrf': self.csrf                   # csrf 参数
+        }
+        assert self.csrf != ''
+        self.post(url, param)
+
+        self.logger.info(f'弹幕 {danmu} 发送成功')
+        return
