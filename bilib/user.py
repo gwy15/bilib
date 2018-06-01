@@ -76,9 +76,9 @@ class User:
 
     def __repr__(self):
         if not self.logined:
-            return '<bililib.User %s [not logged in]>' % self.phone
+            return '<bilib.User %s [not logged in]>' % self.phone
         else:
-            return '<bililib.User %s lv.%d>' % (self.phone, self.level)
+            return '<bilib.User %s lv.%d>' % (self.phone, self.level)
 
     def _requireLogined(func):
         '类中的装饰器，装饰一个，要求调用之前必须登陆'
@@ -218,7 +218,7 @@ class User:
         '''发送弹幕。
 
         Args:
-            danmu(bililib.Danmu): 要发送的弹幕
+            danmu(bilib.Danmu): 要发送的弹幕
 
         Returns:
             None
@@ -226,8 +226,8 @@ class User:
         Raises:
             BiliError: if any error occured.
         '''
-        import bililib
-        self.assertType(danmu, 'danmu', bililib.Danmu)
+        import bilib
+        self.assertType(danmu, 'danmu', bilib.Danmu)
 
         url = 'https://api.bilibili.com/x/v2/dm/post'
         param = {

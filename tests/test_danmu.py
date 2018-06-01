@@ -1,8 +1,8 @@
 import unittest
 
-import bililib
+import bilib
 
-import config
+from tests import config
 
 
 class DanmuTester(unittest.TestCase):
@@ -11,7 +11,7 @@ class DanmuTester(unittest.TestCase):
 
     def testDanmuGetCid(self):
         t = 12000
-        danmu = bililib.Danmu('test', t, self.config['danmu']['aid'])
+        danmu = bilib.Danmu('test', t, self.config['danmu']['aid'])
         self.assertEqual(danmu.cid, self.config['danmu']['cid'])
 
     def testDanmuStr(self):
@@ -27,6 +27,6 @@ class DanmuTester(unittest.TestCase):
                  (36062_234, '10:01:02.234'))
         for case in cases:
             with self.subTest(case=case):
-                danmu = bililib.Danmu('test', case[0], aid, cid)
+                danmu = bilib.Danmu('test', case[0], aid, cid)
                 self.assertEqual(
                     str(danmu), f'<Danmu "test" @{case[1]} #{aid}>')
