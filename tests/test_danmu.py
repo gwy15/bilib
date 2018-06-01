@@ -14,6 +14,10 @@ class DanmuTester(unittest.TestCase):
         danmu = bilib.Danmu('test', t, self.config['danmu']['aid'])
         self.assertEqual(danmu.cid, self.config['danmu']['cid'])
 
+        # 测试多 P
+        danmu = bilib.Danmu('test', t, 8834605)
+        self.assertEqual(danmu.cid, 14573723)
+
     def testDanmuStr(self):
         aid, cid = 1551, 1551
         cases = ((12, '0.012'),
