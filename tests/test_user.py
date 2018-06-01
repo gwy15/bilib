@@ -38,6 +38,8 @@ class UserTester(unittest.TestCase):
             self.user.postDanmu(123)
 
     def testUserInfo(self):
+        with self.assertRaises(bililib.user.BiliRequireLogin):
+            self.user.csrf
 
         with self.assertRaises(bililib.user.BiliRequireLogin):
             self.user.getUserInfo()
@@ -48,6 +50,7 @@ class UserTester(unittest.TestCase):
         self.assertIsInstance(self.user.level, int)
         self.assertIsInstance(self.user.coins, int)
         self.assertIsInstance(self.user.name, str)
+        self.assertIsInstance(self.user.csrf, str)
 
     def testUpdateCoin(self):
         with self.assertRaises(bililib.user.BiliRequireLogin):
@@ -55,3 +58,19 @@ class UserTester(unittest.TestCase):
 
         self.user.login()
         self.user.updateCoins()
+
+    @unittest.skip('投币不能测试太多')
+    def testGiveCoin(self):
+        with self.assertRaises(bililib.user.BiliRequireLogin):
+            self.user.giveCoin(24145781)
+
+        self.user.login()
+
+        with self.assertRaises(TypeError):
+            self.user.giveCoin('24145781')
+        with self.assertRaises(TypeError):
+            self.user.giveCoin(24145781, '1')
+        with self.assertRaises(ValueError):
+            self.user.giveCoin(24145781, 3)
+
+        self.user.giveCoin(24145781)
