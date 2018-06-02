@@ -99,3 +99,10 @@ class UserTester(unittest.TestCase):
         with self.assertRaises(bilib.user.BiliError):
             import requests
             self.user.do(requests.get, 'http://www.non-exist.com/index.html')
+
+    @unittest.skip('评论也不能测试太多')
+    def testComment(self):
+        with self.assertRaises(bilib.user.BiliRequireLogin):
+            self.user.comment(24110743)
+
+        # TODO: 补全测试
