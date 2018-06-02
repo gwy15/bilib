@@ -5,6 +5,14 @@ import bilib
 from tests import config
 
 
+class ErrorTest(unittest.TestCase):
+    def testRepr(self):
+        self.assertEqual(repr(bilib.user.BiliError('reason')),
+                         '<BiliError: reason>')
+        self.assertEqual(repr(bilib.user.BiliRequireLogin('reason')),
+                         '<BiliRequireLogin: reason>')
+
+
 class UserTester(unittest.TestCase):
     def setUp(self):
         self.config = config.getConfig()
@@ -22,6 +30,7 @@ class UserTester(unittest.TestCase):
         with self.assertRaises(TypeError):
             bilib.User('1230001234', '123', '123', coins='1')
 
+    @unittest.skip('发送弹幕太快跳过')
     def testDanmu(self):
         danmu = bilib.Danmu(
             'test', 2_000,  # 2s
@@ -74,3 +83,19 @@ class UserTester(unittest.TestCase):
             self.user.giveCoin(24145781, 3)
 
         self.user.giveCoin(24145781)
+
+    def testStr(self):
+        self.assertEqual(
+            str(self.user),
+            f'<bilib.User {self.user.phone} [not logged in]>')
+
+        self.user.login()
+
+        self.assertEqual(
+            str(self.user),
+            f'<bilib.User {self.user.phone} lv.{self.user.level}>')
+
+    def testDo(self):
+        with self.assertRaises(bilib.user.BiliError):
+            import requests
+            self.user.do(requests.get, 'http://www.non-exist.com/index.html')

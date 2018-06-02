@@ -14,10 +14,9 @@ import rsa
 class BiliError(Exception):
     def __init__(self, msg):
         super().__init__(msg)
-        self.msg = msg
 
     def __repr__(self):
-        return '%s: %s' % (type(self).__name__, self.msg)
+        return '<%s: %s>' % (type(self).__name__, str(self))
 
 
 class BiliRequireLogin(BiliError):
