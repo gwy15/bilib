@@ -276,18 +276,43 @@ class User:
             'csrf': self.csrf
         }
 
-        try:
-            data = self.post(url, params, headers={
-                'Host': 'api.bilibili.com',
-                'Origin': 'https://www.bilibili.com',
-                'Referer': 'https://www.bilibili.com/video/av%d' % aid})
-            if data is not None:
-                raise RuntimeError(
-                    'return data is supposed to be None, received %s' % data)
-        except BiliError as ex:
-            self.logger.error(ex)
-            raise
+        data = self.post(url, params, headers={
+            'Host': 'api.bilibili.com',
+            'Origin': 'https://www.bilibili.com',
+            'Referer': 'https://www.bilibili.com/video/av%d' % aid})
+        if data is not None:
+            raise BiliError(
+                'return data is supposed to be None, received %s' % data)
 
+        return data
+
+    @_requireLogined
+    def comment(self, aid, msg):
+        '''评论视频。
+
+        Args:
+            aid (int): 视频 aid。
+            msg (str): 评论内容。
+
+        Raises:
+            BiliRequireLogin: 如果未登录。
+            TypeError: 如果类型不匹配。
+            BiliError: 根据 b 站返回确定。
+        '''
+        self.assertType(aid, 'aid', int)
+        self.assertType(msg, 'msg', str)
+
+        url = 'https://api.bilibili.com/x/v2/reply/add'
+        params = {
+            'oid': aid,
+            'type': '1',
+            'message': msg,
+            'plat': 1,
+            'jsonp': 'jsonp',
+            'csrf': self.csrf
+        }
+
+        data = self.post(url, params=params)
         return data
 
     # properties
