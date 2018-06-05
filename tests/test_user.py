@@ -30,7 +30,7 @@ class UserTester(unittest.TestCase):
         with self.assertRaises(TypeError):
             bilib.User('1230001234', '123', '123', coins='1')
 
-    @unittest.skip('发送弹幕太快跳过')
+    # @unittest.skip('发送弹幕太快跳过')
     def testDanmu(self):
         danmu = bilib.Danmu(
             'test', 2_000,  # 2s

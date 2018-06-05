@@ -43,7 +43,7 @@ class User:
     APPKEY = '1d8b6e7d45233436'
     SECRET_KEY = "560c52ccd288fed045859ed18bffd973"
 
-    def __init__(self, phone, password, username=None, level=0, coins=0):
+    def __init__(self, phone, password, username=None, level=0, coins=0, **kws):
         self.session = None
 
         self.assertType(phone, 'phone', str)
@@ -100,7 +100,9 @@ class User:
             ))
 
     @staticmethod
-    def _sign(s):
+    def _sign(s, key=None):
+        if key is None:
+            key = User.SECRET_KEY
         return hashlib.md5(
             (s + User.SECRET_KEY).encode('utf8')).hexdigest()
 
@@ -126,7 +128,7 @@ class User:
         '''登陆
 
         Note:
-            用户需要手动调用本方法，在登陆后，user.level, user.coins, user.name 
+            用户需要手动调用本方法，在登陆后，user.level, user.coins, user.name
             会刷新, user.csrf 变为可用。
 
         '''
@@ -141,6 +143,9 @@ class User:
 
         data = self.do(requests.post, url, data=params,
                        headers={"Content-type": "application/x-www-form-urlencoded"})
+
+        # 处理返回数据
+        self.mid = data['token_info']['mid']
 
         for cookie in data['cookie_info']['cookies']:
             self.session.cookies[cookie['name']] = cookie['value']
