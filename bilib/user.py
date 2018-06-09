@@ -12,11 +12,15 @@ import rsa
 
 
 class BiliError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg, code=None):
         super().__init__(msg)
+        self.code = code
 
     def __repr__(self):
-        return '<%s: %s>' % (type(self).__name__, str(self))
+        return '<%s%s: %s>' % (
+            type(self).__name__,
+            (' (%d)' % self.code) if self.code else '',
+            str(self))
 
 
 class BiliRequireLogin(BiliError):
@@ -174,10 +178,10 @@ class User:
             jsData = response.json()
         except json.JSONDecodeError:
             raise RuntimeError(
-                'response is not a json string. %s' % response.text)
+                'Response is not a json string. %s' % response.text)
 
         if jsData['code']:
-            raise BiliError(jsData.get('message', ''))
+            raise BiliError(jsData.get('message', ''), code=jsData['code'])
 
         return jsData.get('data', None)
 
@@ -318,6 +322,98 @@ class User:
         }
 
         data = self.post(url, params=params)
+        return data
+
+    @_requireLogined
+    def hasSafeQuestion(self):
+        '''检查用户是否有安全问题
+
+        return:
+            bool
+        '''
+        url = 'https://account.bilibili.com/home/reward'
+        data = self.get(url, headers={
+            'Referer': 'https://account.bilibili.com/account/home',
+            'Host': 'account.bilibili.com'})
+        return data['safequestion']
+
+    @_requireLogined
+    def initSafeQuestion(self, questionID, answer):
+        '''初始化密保问题
+
+        Args:
+            questionID (int): 安全问题编号
+            answer (str): 密保问题答案
+        '''
+        self.assertType(questionID, 'questionID', int)
+        self.assertType(answer, 'answer', str)
+
+        return self._updateSafeQuestion(
+            questionID, answer,
+            0, '', 1)
+
+    @_requireLogined
+    def verifySafeQuestion(self, questionID, answer):
+        '''验证密保问题
+
+        Args:
+            questionID (int): 安全问题编号
+            answer (str): 密保问题答案
+
+        return:
+            bool: True if correct, False otherwise
+        '''
+        self.assertType(questionID, 'questionID', int)
+        self.assertType(answer, 'answer', str)
+        try:
+            self._updateSafeQuestion(
+                questionID, answer,
+                0, '', 1)
+            return True
+        except BiliError as ex:
+            if ex.code == -632:
+                return False
+            else:
+                raise
+
+    @_requireLogined
+    def changeSafeQuestion(self, oldQuestionID, oldAnswer, newQuestionID, newAnswer):
+        '''更改密保问题
+
+        Args:
+            oldQuestionID (int): 旧密保问题编号
+            oldAnswer (str): 旧密保问题答案
+            newQuestionID (int): 新密保问题编号
+            newAnswer (str): 新密保问题答案
+        
+        Raise:
+            BiliError: 验证未通过
+        '''
+        self.assertType(oldQuestionID, 'oldQuestionID', int)
+        self.assertType(oldAnswer, 'oldAnswer', str)
+        self.assertType(newQuestionID, 'newQuestionID', int)
+        self.assertType(newAnswer, 'newAnswer', str)
+
+        self._updateSafeQuestion(
+            oldQuestionID, oldAnswer,
+            newQuestionID, newAnswer, 1)
+        self._updateSafeQuestion(
+            oldQuestionID, oldAnswer,
+            newQuestionID, newAnswer, 2)
+
+    @_requireLogined
+    def _updateSafeQuestion(self, oldSQ, oldAnswer, newSQ, newAnswer, canChange):
+        url = 'https://passport.bilibili.com/web/site/updateSafeQuestion'
+        params = {
+            'old_safe_question': oldSQ,
+            'old_answer': oldAnswer,
+            'new_safe_question': newSQ,
+            'new_answer': newAnswer,
+            'can_change_safe_qa': canChange,
+            'csrf': self.csrf
+        }
+        data = self.post(url, params, headers={
+            'Host': 'passport.bilibili.com'})
         return data
 
     # properties
