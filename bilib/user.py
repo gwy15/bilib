@@ -104,19 +104,25 @@ class User:
             ))
 
     @staticmethod
-    def _sign(s, key=None):
+    def _flaten(params):
+        return '&'.join('%s=%s' % item for item in sorted(
+            params.items(), key=lambda item: item[0]
+        ))
+
+    @staticmethod
+    def _signed(params, key=None):
         if key is None:
             key = User.SECRET_KEY
-        return hashlib.md5(
-            (s + User.SECRET_KEY).encode('utf8')).hexdigest()
+
+        s = User._flaten(params)
+        params['sign'] = hashlib.md5(
+            (s + key).encode('utf8')).hexdigest()
+        return params
 
     def _getPwd(self, username, password):
         '对密码进行 RSA 加密'
         url = 'https://passport.bilibili.com/api/oauth2/getKey'
-        params = {
-            'appkey': self.APPKEY,
-            'sign': self._sign(f'appkey={self.APPKEY}')
-        }
+        params = self._signed({'appkey': self.APPKEY})
 
         data = self.do(requests.post, url, params)
 
@@ -127,36 +133,6 @@ class User:
         password = parse.quote_plus(password)
         username = parse.quote_plus(username)
         return username, password
-
-    def login(self):
-        '''登陆
-
-        Note:
-            用户需要手动调用本方法，在登陆后，user.level, user.coins, user.name
-            会刷新, user.csrf 变为可用。
-
-        '''
-        self.logger.debug(f'用户 {self.phone} 登陆中...')
-
-        url = "https://passport.bilibili.com/api/v2/oauth2/login"
-
-        user, pwd = self._getPwd(self.phone, self.password)
-        params = f'appkey={self.APPKEY}&password={pwd}&username={user}'
-        sign = self._sign(params)
-        params += '&sign=' + sign
-
-        data = self.do(requests.post, url, data=params,
-                       headers={"Content-type": "application/x-www-form-urlencoded"})
-
-        # 处理返回数据
-        self.mid = data['token_info']['mid']
-
-        for cookie in data['cookie_info']['cookies']:
-            self.session.cookies[cookie['name']] = cookie['value']
-        self.logger.info(f'用户 {self.phone} 登陆成功')
-        self.logined = True
-
-        self.getUserInfo()
 
     def do(self, method, url, *args, times=1, **kws):
         # robust
@@ -174,6 +150,9 @@ class User:
                                 type(self).__name__)
             return self.do(method, url, *args, times=times+1, **kws)
 
+        if response.text == 'Fatal: API error':
+            raise BiliError(response.text)
+
         try:
             jsData = response.json()
         except json.JSONDecodeError:
@@ -190,6 +169,45 @@ class User:
 
     def post(self, url, *args, **kws):
         return self.do(self.session.post, url, *args, **kws)
+
+    # 登陆部分
+
+    def login(self):
+        '''登陆
+
+        Note:
+            用户需要手动调用本方法，在登陆后，user.level, user.coins, user.name
+            会刷新, user.csrf 变为可用。
+
+        '''
+        self.logger.debug(f'用户 {self.phone} 登陆中...')
+
+        url = 'https://passport.bilibili.com/api/v2/oauth2/login'
+
+        user, pwd = self._getPwd(self.phone, self.password)
+        params = self._signed({
+            'appkey': self.APPKEY,
+            'password': pwd,
+            'username': user
+        })
+
+        data = self.do(requests.post, url,
+                       #    params=params,
+                       data=self._flaten(params),
+                       headers={"Content-type": "application/x-www-form-urlencoded"})
+
+        # 处理返回数据
+        self.mid = data['token_info']['mid']
+        self._accessToken = data['token_info']['access_token']
+        self._refreshToken = data['token_info']['refresh_token']
+        self.expiresTime = time.time() + data['token_info']['expires_in']
+
+        for cookie in data['cookie_info']['cookies']:
+            self.session.cookies[cookie['name']] = cookie['value']
+        self.logger.info(f'用户 {self.phone} 登陆成功')
+        self.logined = True
+
+        self.getUserInfo()
 
     # 接口
 
@@ -295,6 +313,8 @@ class User:
 
         return data
 
+    # 弹幕
+
     @_requireLogined
     def comment(self, aid, msg):
         '''评论视频。
@@ -323,6 +343,8 @@ class User:
 
         data = self.post(url, params=params)
         return data
+
+    # 密保问题
 
     @_requireLogined
     def hasSafeQuestion(self):
@@ -385,7 +407,7 @@ class User:
             oldAnswer (str): 旧密保问题答案
             newQuestionID (int): 新密保问题编号
             newAnswer (str): 新密保问题答案
-        
+
         Raise:
             BiliError: 验证未通过
         '''
