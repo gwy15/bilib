@@ -71,29 +71,29 @@ class UserTester(unittest.TestCase):
     @unittest.skip('投币不能测试太多')
     def testGiveCoin(self):
         with self.assertRaises(bilib.user.BiliRequireLogin):
-            self.user.giveCoin(24145781)
+            self.user.giveCoin(271)
 
         self.user.login()
 
         with self.assertRaises(TypeError):
-            self.user.giveCoin('24145781')
+            self.user.giveCoin('271')
         with self.assertRaises(TypeError):
-            self.user.giveCoin(24145781, '1')
+            self.user.giveCoin(271, '1')
         with self.assertRaises(ValueError):
-            self.user.giveCoin(24145781, 3)
+            self.user.giveCoin(271, 3)
 
-        self.user.giveCoin(24145781)
+        self.user.giveCoin(271)
 
     def testStr(self):
         self.assertEqual(
             str(self.user),
-            f'<bilib.User {self.user.phone} [not logged in]>')
+            f'<User {self.user.phone} [not logged in]>')
 
         self.user.login()
 
         self.assertEqual(
             str(self.user),
-            f'<bilib.User {self.user.phone} lv.{self.user.level}>')
+            f'<User {self.user.phone} lv.{self.user.level}>')
 
     def testDo(self):
         with self.assertRaises(bilib.user.BiliError):
@@ -103,6 +103,8 @@ class UserTester(unittest.TestCase):
     @unittest.skip('评论也不能测试太多')
     def testComment(self):
         with self.assertRaises(bilib.user.BiliRequireLogin):
-            self.user.comment(24110743)
+            self.user.comment(24110743, '考古')
 
-        # TODO: 补全测试
+        self.user.login()
+        self.user.comment(24110743, '考古')
+

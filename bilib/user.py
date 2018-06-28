@@ -79,9 +79,9 @@ class User:
 
     def __repr__(self):
         if not self.logined:
-            return '<bilib.User %s [not logged in]>' % self.phone
+            return '<%s %s [not logged in]>' % (type(self).__name__, self.phone)
         else:
-            return '<bilib.User %s lv.%d>' % (self.phone, self.level)
+            return '<%s %s lv.%d>' % (type(self).__name__, self.phone, self.level)
 
     def _requireLogined(func):
         '类中的装饰器，装饰一个，要求调用之前必须登陆'
@@ -139,6 +139,7 @@ class User:
         if times >= 5:
             raise BiliError('Max retry times reached.')
 
+        # 处理 requests 抛出的异常
         try:
             response = method(url, *args, **kws)
         except requests.ConnectTimeout:
@@ -150,18 +151,22 @@ class User:
                                 type(self).__name__)
             return self.do(method, url, *args, times=times+1, **kws)
 
+        # 处理 API error
         if response.text == 'Fatal: API error':
             raise BiliError(response.text)
 
+        # 处理 json 无法解析
         try:
             jsData = response.json()
         except json.JSONDecodeError:
             raise RuntimeError(
                 'Response is not a json string. %s' % response.text)
 
+        # 处理错误返回码
         if jsData['code']:
             raise BiliError(jsData.get('message', ''), code=jsData['code'])
 
+        # 返回正常数据
         return jsData.get('data', None)
 
     def get(self, url, *args, **kws):
