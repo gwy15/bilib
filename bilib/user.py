@@ -4,6 +4,7 @@ import base64
 import time
 from urllib import parse
 import json
+import re
 import functools
 import unittest
 
@@ -163,7 +164,7 @@ class User:
                 'Response is not a json string. %s' % response.text)
 
         # 处理错误返回码
-        if jsData['code']:
+        if jsData['code'] not in (0, 'REPONSE_OK'):
             raise BiliError(jsData.get('message', ''), code=jsData['code'])
 
         # 返回正常数据
@@ -319,6 +320,43 @@ class User:
         return data
 
     # 弹幕
+
+    # 直播
+    @staticmethod
+    def getRoomCid(showID):
+        url = 'https://live.bilibili.com/%s' % showID
+        page = requests.get(url).content.decode('utf8')
+        results = re.findall(r'"room_id":(\d+)', page)
+        assert all(item == results[0] for item in results)
+        return results[0]
+
+    @_requireLogined
+    def getUserLiveLevel(self):
+        data = self.get('https://api.live.bilibili.com/User/getUserInfo?ts=%s' %
+                        int(1000 * time.time()),
+                        headers={
+                            'Host': 'api.live.bilibili.com'
+                        })
+        return data['user_level']
+
+    @_requireLogined
+    def postLiveDanmu(self, msg, roomid):
+        url = 'https://api.live.bilibili.com/msg/send'
+        form = {
+            'color': 0xFFFFFF,
+            'fontsize': 25,
+            'mode': 1,
+            'msg': msg,
+            'rnd': int(time.time()),
+            'roomid': roomid,
+            'csrf_token': self.csrf
+        }
+        headers = {
+            'Host': 'api.live.bilibili.com'
+        }
+        res = self.post(url, form, headers=headers)
+        if res != []:
+            raise BiliError('result: %s' % res)
 
     @_requireLogined
     def comment(self, aid, msg):
