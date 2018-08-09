@@ -323,12 +323,26 @@ class User:
 
     # 直播
     @staticmethod
-    def getRoomCid(showID):
+    def getRoomInfo(showID):
         url = 'https://live.bilibili.com/%s' % showID
         page = requests.get(url).content.decode('utf8')
-        results = re.findall(r'"room_id":(\d+)', page)
-        assert all(item == results[0] for item in results)
-        return results[0]
+        from bs4 import BeautifulSoup as bs
+        soup = bs(page, 'html.parser')
+        script = soup.find('div', {'class': 'script-requirement'}).script.text
+        data = json.loads(script.replace(
+            "window.__NEPTUNE_IS_MY_WAIFU__=", ''))
+
+        cid = data['roomInitRes']['data']['room_id']
+        title = data['baseInfoRes']['data']['title']
+        return {'cid': cid, 'title': title}
+
+    @staticmethod
+    def getAncherName(roomID):
+        url = 'https://api.live.bilibili.com/live_user/v1/UserInfo/get_anchor_in_room?roomid=%s'
+        data = json.loads(
+            requests.get(url % roomID,
+                         headers={'Host': 'api.live.bilibili.com'}).content.decode('utf8'))
+        return data['data']['info']['uname']
 
     @_requireLogined
     def getUserLiveLevel(self):
