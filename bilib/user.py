@@ -74,6 +74,24 @@ class User:
 
         self.logger = logging.getLogger(self.phone)
 
+    def initLogger(self, debug=False):
+        self.logger.propagate = False
+        formatter = logging.Formatter(
+            fmt=f'(%(asctime)s) - [%(levelname)s] <User {self.phone}> %(message)s',
+            datefmt='%y-%m-%d %H:%M:%S')
+
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG if debug else logging.INFO)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+
+        handler = logging.FileHandler('bilibili.log', encoding='utf8')
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+
+        self.logger.setLevel(logging.DEBUG)
+
     def __del__(self):
         if self.session:
             self.session.close()
@@ -135,7 +153,7 @@ class User:
         username = parse.quote_plus(username)
         return username, password
 
-    def do(self, method, url, *args, times=1, **kws):
+    def do(self, method, url, *args, times=1, key='data', **kws):
         # robust
         if times >= 5:
             raise BiliError('Max retry times reached.')
@@ -170,7 +188,7 @@ class User:
                 code=jsData['code'])
 
         # 返回正常数据
-        return jsData.get('data', None)
+        return jsData.get(key, None)
 
     def get(self, url, *args, **kws):
         return self.do(self.session.get, url, *args, **kws)
@@ -231,7 +249,7 @@ class User:
         url = 'http://account.bilibili.com/home/userInfo'
         data = self.get(url, headers={'Host': 'account.bilibili.com'})
         self.level = data['level_info']['current_level']
-        self.coins = data['coins']
+        self.coins = int(data['coins'])
         self.name = data['uname']
 
     @_requireLogined
@@ -246,6 +264,15 @@ class User:
         data = self.get(url, headers={'Host': 'account.bilibili.com',
                                       'Referer': 'https://account.bilibili.com/account/coin'})
         self.coins = data['money']
+
+    @_requireLogined
+    def getTodayCoinExp(self):
+        '''返回今天投币经验
+        '''
+        url = 'https://www.bilibili.com/plus/account/exp.php'
+        data = self.get(url, key='number', headers={'Host': 'www.bilibili.com'})
+        self.logger.debug('今日投币经验: %s' % data)
+        return data
 
     @_requireLogined
     def postDanmu(self, danmu):
@@ -310,7 +337,7 @@ class User:
             'cross_domain': 'true',
             'csrf': self.csrf
         }
-
+        self.logger.info('给视频 aid=%d 投币 %d 个' % (aid, num))
         data = self.post(url, params, headers={
             'Host': 'api.bilibili.com',
             'Origin': 'https://www.bilibili.com',
