@@ -165,7 +165,9 @@ class User:
 
         # 处理错误返回码
         if jsData['code'] not in (0, 'REPONSE_OK'):
-            raise BiliError(jsData.get('message', ''), code=jsData['code'])
+            raise BiliError(
+                jsData.get('message') or jsData.get('msg', 'NO MSG'),
+                code=jsData['code'])
 
         # 返回正常数据
         return jsData.get('data', None)
