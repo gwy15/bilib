@@ -28,6 +28,18 @@ class BiliRequireLogin(BiliError):
     pass
 
 
+def _requireLogined(func):
+    '类中的装饰器，装饰一个，要求调用之前必须登陆'
+    @functools.wraps(func)
+    def wrapped(self, *args, **kws):
+        if not self.logined:
+            raise BiliRequireLogin(
+                'This api requires user logined. Call method login() first.')
+        return func(self, *args, **kws)
+
+    return wrapped
+
+
 class User:
     '''bilibili 用户基类
 
@@ -102,17 +114,6 @@ class User:
         else:
             return '<%s %s lv.%d>' % (type(self).__name__, self.phone, self.level)
 
-    def _requireLogined(func):
-        '类中的装饰器，装饰一个，要求调用之前必须登陆'
-        @functools.wraps(func)
-        def wrapped(self, *args, **kws):
-            if not self.logined:
-                raise BiliRequireLogin(
-                    'This api requires user logined. Call method login() first.')
-            return func(self, *args, **kws)
-
-        return wrapped
-
     # 基础函数
 
     @staticmethod
@@ -153,7 +154,7 @@ class User:
         username = parse.quote_plus(username)
         return username, password
 
-    def do(self, method, url, *args, times=1, key='data', **kws):
+    def do(self, method, url, *args, times=1, key='data', checkCode=True, **kws):
         # robust
         if times >= 5:
             raise BiliError('Max retry times reached.')
@@ -182,7 +183,7 @@ class User:
                 'Response is not a json string. %s' % response.text)
 
         # 处理错误返回码
-        if jsData['code'] not in (0, 'REPONSE_OK'):
+        if checkCode and jsData['code'] not in (0, 'REPONSE_OK'):
             raise BiliError(
                 jsData.get('message') or jsData.get('msg', 'NO MSG'),
                 code=jsData['code'])
@@ -235,6 +236,17 @@ class User:
 
         self.getUserInfo()
 
+    # 视频部分
+    @_requireLogined
+    def getRecommendAids(self):
+        '获取推荐视频的 aid'
+        url = 'https://www.bilibili.com/index/recommend.json'
+        data = self.get(url,
+                        headers={'Host': 'www.bilibili.com'},
+                        checkCode=False,
+                        key='list')
+        return [item['aid'] for item in data]
+
     # 接口
 
     @_requireLogined
@@ -270,46 +282,10 @@ class User:
         '''返回今天投币经验
         '''
         url = 'https://www.bilibili.com/plus/account/exp.php'
-        data = self.get(url, key='number', headers={'Host': 'www.bilibili.com'})
+        data = self.get(url, key='number', headers={
+                        'Host': 'www.bilibili.com'})
         self.logger.debug('今日投币经验: %s' % data)
         return data
-
-    @_requireLogined
-    def postDanmu(self, danmu):
-        '''发送弹幕。
-
-        Args:
-            danmu(bilib.Danmu): 要发送的弹幕
-
-        Returns:
-            None
-
-        Raises:
-            BiliError: if any error occured.
-        '''
-        import bilib
-        self.assertType(danmu, 'danmu', bilib.Danmu)
-
-        url = 'https://api.bilibili.com/x/v2/dm/post'
-        param = {
-            'type': danmu.mode.value,           # 模式
-            'oid': danmu.cid,                   # cid, 可用 self.getCid 获得
-            'msg': danmu.msg,                   # 弹幕内容
-            'aid': danmu.aid,                   # aid
-            'progress': int(danmu.t),           # 时间，毫秒为单位
-            'color': int(danmu.color),          # 十六进制的 RGB
-            'fontsize': danmu.fontsize,         # 字体大小，两种规格，这个是默认的那个
-            'pool': 0,                          # 不知道，猜测是弹幕池，放 0
-            'mode': danmu.mode.value,           # mode 和 type 有啥区别？
-            'plat': 1,                          # 应该是平台
-            'rnd': int(1000000 * time.time()),  # 时间，单位 us
-            'csrf': self.csrf                   # csrf 参数
-        }
-        assert self.csrf != ''
-        self.post(url, param)
-
-        self.logger.info(f'弹幕 {danmu} 发送成功')
-        return
 
     @_requireLogined
     def giveCoin(self, aid, num=1):
@@ -348,9 +324,76 @@ class User:
 
         return data
 
+    @_requireLogined
+    def comment(self, aid, msg):
+        '''评论视频。
+
+        Args:
+            aid (int): 视频 aid。
+            msg (str): 评论内容。
+
+        Raises:
+            BiliRequireLogin: 如果未登录。
+            TypeError: 如果类型不匹配。
+            BiliError: 根据 b 站返回确定。
+        '''
+        self.assertType(aid, 'aid', int)
+        self.assertType(msg, 'msg', str)
+
+        url = 'https://api.bilibili.com/x/v2/reply/add'
+        params = {
+            'oid': aid,
+            'type': '1',
+            'message': msg,
+            'plat': 1,
+            'jsonp': 'jsonp',
+            'csrf': self.csrf
+        }
+
+        data = self.post(url, params=params)
+        return data
+
     # 弹幕
 
+    @_requireLogined
+    def postDanmu(self, danmu):
+        '''发送弹幕。
+
+        Args:
+            danmu(bilib.Danmu): 要发送的弹幕
+
+        Returns:
+            None
+
+        Raises:
+            BiliError: if any error occured.
+        '''
+        import bilib
+        self.assertType(danmu, 'danmu', bilib.Danmu)
+
+        url = 'https://api.bilibili.com/x/v2/dm/post'
+        param = {
+            'type': danmu.mode.value,           # 模式
+            'oid': danmu.cid,                   # cid, 可用 self.getCid 获得
+            'msg': danmu.msg,                   # 弹幕内容
+            'aid': danmu.aid,                   # aid
+            'progress': int(danmu.t),           # 时间，毫秒为单位
+            'color': int(danmu.color),          # 十六进制的 RGB
+            'fontsize': danmu.fontsize,         # 字体大小，两种规格，这个是默认的那个
+            'pool': 0,                          # 不知道，猜测是弹幕池，放 0
+            'mode': danmu.mode.value,           # mode 和 type 有啥区别？
+            'plat': 1,                          # 应该是平台
+            'rnd': int(1000000 * time.time()),  # 时间，单位 us
+            'csrf': self.csrf                   # csrf 参数
+        }
+        assert self.csrf != ''
+        self.post(url, param)
+
+        self.logger.info(f'弹幕 {danmu} 发送成功')
+        return
+
     # 直播
+
     @staticmethod
     def getRoomInfo(showID):
         url = 'https://live.bilibili.com/%s' % showID
@@ -400,35 +443,6 @@ class User:
         res = self.post(url, form, headers=headers)
         if res != []:
             raise BiliError('result: %s' % res)
-
-    @_requireLogined
-    def comment(self, aid, msg):
-        '''评论视频。
-
-        Args:
-            aid (int): 视频 aid。
-            msg (str): 评论内容。
-
-        Raises:
-            BiliRequireLogin: 如果未登录。
-            TypeError: 如果类型不匹配。
-            BiliError: 根据 b 站返回确定。
-        '''
-        self.assertType(aid, 'aid', int)
-        self.assertType(msg, 'msg', str)
-
-        url = 'https://api.bilibili.com/x/v2/reply/add'
-        params = {
-            'oid': aid,
-            'type': '1',
-            'message': msg,
-            'plat': 1,
-            'jsonp': 'jsonp',
-            'csrf': self.csrf
-        }
-
-        data = self.post(url, params=params)
-        return data
 
     # 密保问题
 
