@@ -247,6 +247,12 @@ class User:
                         key='list')
         return [item['aid'] for item in data]
 
+    def getRankingList(self):
+        url = 'https://www.bilibili.com/ranking/all/0/0/1'
+        text = self.session.get(url, headers={'Host': 'www.bilibili.com'}).text
+        aids = re.findall(r'av(\d+)', text)
+        return aids
+
     # 接口
 
     @_requireLogined
