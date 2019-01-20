@@ -313,7 +313,7 @@ class User:
         return data
 
     @_requireLogined
-    def giveCoin(self, aid, num=1):
+    def giveCoin(self, aid, num=1, like=False):
         '''给视频投硬币。
 
         Args:
@@ -335,6 +335,7 @@ class User:
         params = {
             'aid': aid,
             'multiply': num,
+            'select_like': int(like)
             'cross_domain': 'true',
             'csrf': self.csrf
         }
@@ -343,10 +344,6 @@ class User:
             'Host': 'api.bilibili.com',
             'Origin': 'https://www.bilibili.com',
             'Referer': 'https://www.bilibili.com/video/av%d' % aid})
-        if data is not None:
-            raise BiliError(
-                'return data is supposed to be None, received %s' % data)
-
         return data
 
     @_requireLogined
