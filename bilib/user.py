@@ -335,7 +335,7 @@ class User:
         params = {
             'aid': aid,
             'multiply': num,
-            'select_like': int(like)
+            'select_like': int(like),
             'cross_domain': 'true',
             'csrf': self.csrf
         }
