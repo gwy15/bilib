@@ -9,6 +9,7 @@ import functools
 import unittest
 
 import requests
+from bs4 import BeautifulSoup as bs
 import rsa
 
 
@@ -87,6 +88,8 @@ class User:
         self.logger = logging.getLogger(self.phone)
 
     def initLogger(self, debug=False):
+        if not self.logger:
+            self.logger = logging.getLogger(self.phone)
         self.logger.propagate = False
         formatter = logging.Formatter(
             fmt=f'(%(asctime)s) - [%(levelname)s] <User {self.phone}> %(message)s',
@@ -253,6 +256,22 @@ class User:
         aids = re.findall(r'av(\d+)', text)
         return aids
 
+    def getVideosOfUser(self, uid):
+        url = 'https://space.bilibili.com/ajax/member/getSubmitVideos'
+        params = {
+            'mid': uid,
+            'pagesize': 30,
+            'tid': 0,
+            'page': 1,
+            'keyword': '',
+            'order': 'pubdate',
+        }
+        data = self.get(url,
+                        params=params,
+                        headers={'Host': 'space.bilibili.com'},
+                        checkCode=False)
+        return data['vlist']
+
     # 接口
 
     @_requireLogined
@@ -403,8 +422,9 @@ class User:
     @staticmethod
     def getRoomInfo(showID):
         url = 'https://live.bilibili.com/%s' % showID
-        page = requests.get(url).content.decode('utf8')
-        from bs4 import BeautifulSoup as bs
+        page = requests.get(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'
+        }).content.decode('utf8')
         soup = bs(page, 'html.parser')
         script = soup.find('div', {'class': 'script-requirement'}).script.text
         data = json.loads(script.replace(
@@ -432,16 +452,17 @@ class User:
         return data['user_level']
 
     @_requireLogined
-    def postLiveDanmu(self, msg, roomid):
+    def postLiveDanmu(self, msg, roomid, fontsize=25):
         url = 'https://api.live.bilibili.com/msg/send'
         form = {
             'color': 0xFFFFFF,
-            'fontsize': 25,
+            'fontsize': fontsize,
             'mode': 1,
             'msg': msg,
             'rnd': int(time.time()),
             'roomid': roomid,
-            'csrf_token': self.csrf
+            'csrf_token': self.csrf,
+            'csrf': self.csrf
         }
         headers = {
             'Host': 'api.live.bilibili.com'
@@ -449,6 +470,29 @@ class User:
         res = self.post(url, form, headers=headers)
         if res != []:
             raise BiliError('result: %s' % res)
+
+    @_requireLogined
+    def liveSignIn(self):
+        if self.todaySigned():
+            self.logger.info('already signed in.')
+            return
+        data = self.get('https://api.live.bilibili.com/sign/doSign',
+                        headers={'Host': 'api.live.bilibili.com'})
+        self.logger.info('今日收获: ' + data['text'])
+        if data['specialText']:
+            self.logger.info(data['specialText'])
+        return data
+
+    @_requireLogined
+    def todaySigned(self):
+        data = self.get('https://api.live.bilibili.com/sign/GetSignInfo',
+                        headers={'Host': 'api.live.bilibili.com'})
+        curDate = '{}-{}-{}'.format(data['curYear'],
+                                    data['curMonth'], data['curDay'])
+        if data['curDate'] == curDate and data['signDaysList'] and data['signDaysList'][-1] == data['curDay']:
+            return True
+        else:
+            return False
 
     # 密保问题
 

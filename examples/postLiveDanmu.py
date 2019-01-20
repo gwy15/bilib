@@ -16,6 +16,8 @@ def postLiveDanmu(users, roomid, msg):
             if ex.code == -403:
                 users.remove(user)
                 print(f'{user}: {ex}。剩余用户：{len(users)}个')
+            else:
+                raise
 
 
 def main():
@@ -30,6 +32,7 @@ def main():
 
     while True:
         msg = input('> ')
+        msg = msg.replace('\\n', '\n')
         if msg in ('q', 'quit'):
             break
         elif len(msg) > 20:
